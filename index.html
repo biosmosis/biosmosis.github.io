@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Ebook Reader</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Crimson+Pro:wght@300;400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #1a1512;
+      --surface: #231e1a;
+      --surface2: #2e2720;
+      --gold: #c9a84c;
+      --gold-dim: #8a6f30;
+      --text: #e8ddd0;
+      --text-dim: #9a8e82;
+      --shadow: rgba(0,0,0,0.6);
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Crimson Pro', Georgia, serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    /* Subtle grain overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.35;
+    }
+
+    header {
+      width: 100%;
+      text-align: center;
+      padding: 2rem 1rem 1rem;
+      border-bottom: 1px solid var(--surface2);
+    }
+
+    header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      font-weight: 400;
+      letter-spacing: 0.12em;
+      color: var(--gold);
+      text-transform: uppercase;
+    }
+
+    header h1 span {
+      font-style: italic;
+      font-weight: 400;
+      color: var(--text-dim);
+      font-size: 0.75em;
+      display: block;
+      letter-spacing: 0.05em;
+      margin-top: 0.2rem;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      width: 100%;
+      max-width: 1100px;
+    }
+
+    /* Book container */
+    .book-container {
+      position: relative;
+      width: 100%;
+      max-width: 780px;
+    }
+
+    /* Decorative corner elements */
+    .book-frame {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--gold-dim);
+      box-shadow:
+        0 0 0 4px var(--surface2),
+        0 0 0 5px var(--gold-dim),
+        0 30px 80px var(--shadow),
+        0 4px 20px rgba(201,168,76,0.08);
+      padding: 12px;
+    }
+
+    .book-frame::before,
+    .book-frame::after,
+    .corner-br, .corner-bl {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-color: var(--gold);
+      border-style: solid;
+      z-index: 2;
+    }
+    .book-frame::before { top: 6px; left: 6px; border-width: 2px 0 0 2px; }
+    .book-frame::after  { top: 6px; right: 6px; border-width: 2px 2px 0 0; }
+    .corner-br { bottom: 6px; right: 6px; border-width: 0 2px 2px 0; }
+    .corner-bl { bottom: 6px; left: 6px;  border-width: 0 0 2px 2px; }
+
+    .page-display {
+      position: relative;
+      width: 100%;
+      background: #111;
+      aspect-ratio: 3/4;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .page-display img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+      transition: opacity 0.25s ease;
+    }
+
+    .page-display img.fade {
+      opacity: 0;
+    }
+
+    /* No pages message */
+    .no-pages {
+      color: var(--text-dim);
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: 1.1rem;
+      text-align: center;
+      padding: 2rem;
+      line-height: 1.8;
+    }
+
+    /* Navigation */
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 1.4rem;
+      gap: 1rem;
+    }
+
+    .nav-btn {
+      background: none;
+      border: 1px solid var(--gold-dim);
+      color: var(--gold);
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      width: 52px;
+      height: 52px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+
+    .nav-btn:hover:not(:disabled) {
+      background: var(--gold);
+      color: var(--bg);
+      border-color: var(--gold);
+      box-shadow: 0 0 20px rgba(201,168,76,0.25);
+    }
+
+    .nav-btn:disabled {
+      opacity: 0.25;
+      cursor: default;
+    }
+
+    .page-info {
+      text-align: center;
+      flex: 1;
+    }
+
+    .page-info .current-page {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      color: var(--gold);
+      font-weight: 400;
+    }
+
+    .page-info .total-pages {
+      font-size: 0.85rem;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      margin-top: 0.1rem;
+    }
+
+    /* Progress bar */
+    .progress-track {
+      width: 100%;
+      height: 2px;
+      background: var(--surface2);
+      margin-top: 1.4rem;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+      transition: width 0.3s ease;
+    }
+
+    /* Keyboard hint */
+    footer {
+      padding: 1.2rem;
+      color: var(--text-dim);
+      font-size: 0.78rem;
+      letter-spacing: 0.06em;
+      text-align: center;
+    }
+
+    /* Setup instructions overlay */
+    .setup-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(26,21,18,0.96);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 500;
+      padding: 2rem;
+    }
+
+    .setup-box {
+      max-width: 520px;
+      border: 1px solid var(--gold-dim);
+      padding: 2.5rem;
+      background: var(--surface);
+      box-shadow: 0 20px 60px var(--shadow);
+    }
+
+    .setup-box h2 {
+      font-family: 'Playfair Display', serif;
+      color: var(--gold);
+      font-size: 1.4rem;
+      font-weight: 400;
+      margin-bottom: 1.2rem;
+    }
+
+    .setup-box p, .setup-box li {
+      color: var(--text-dim);
+      line-height: 1.8;
+      font-size: 0.95rem;
+    }
+
+    .setup-box ol {
+      padding-left: 1.4rem;
+      margin: 0.8rem 0;
+    }
+
+    .setup-box code {
+      background: var(--bg);
+      color: var(--gold);
+      padding: 0.1em 0.4em;
+      font-size: 0.88em;
+      font-family: 'Courier New', monospace;
+    }
+
+    .setup-box .close-btn {
+      margin-top: 1.5rem;
+      display: block;
+      width: 100%;
+      padding: 0.7rem;
+      background: none;
+      border: 1px solid var(--gold-dim);
+      color: var(--gold);
+      font-family: 'Playfair Display', serif;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .setup-box .close-btn:hover {
+      background: var(--gold);
+      color: var(--bg);
+    }
+
+    .help-btn {
+      position: fixed;
+      bottom: 1.2rem;
+      right: 1.2rem;
+      background: none;
+      border: 1px solid var(--gold-dim);
+      color: var(--gold-dim);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      font-family: 'Playfair Display', serif;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      z-index: 100;
+    }
+
+    .help-btn:hover {
+      color: var(--gold);
+      border-color: var(--gold);
+    }
+
+    @media (max-width: 500px) {
+      .book-frame { padding: 8px; }
+      .nav-btn { width: 44px; height: 44px; font-size: 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>
+    My Library
+    <span id="book-title">Loading…</span>
+  </h1>
+</header>
+
+<main>
+  <div class="book-container">
+    <div class="book-frame">
+      <div class="corner-br"></div>
+      <div class="corner-bl"></div>
+      <div class="page-display" id="pageDisplay">
+        <img id="pageImg" src="" alt="Book page" />
+      </div>
+    </div>
+
+    <nav class="nav">
+      <button class="nav-btn" id="prevBtn" title="Previous page (← or A)">&#8592;</button>
+      <div class="page-info">
+        <div class="current-page" id="currentPageNum">—</div>
+        <div class="total-pages" id="totalPagesNum">of — pages</div>
+      </div>
+      <button class="nav-btn" id="nextBtn" title="Next page (→ or D)">&#8594;</button>
+    </nav>
+
+    <div class="progress-track">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    </div>
+  </div>
+</main>
+
+<footer>Use ← → arrow keys or A / D to turn pages</footer>
+
+<button class="help-btn" id="helpBtn" title="Setup instructions">?</button>
+
+<!-- Setup overlay -->
+<div class="setup-overlay" id="setupOverlay" style="display:none">
+  <div class="setup-box">
+    <h2>How to add your book</h2>
+    <p>This reader loads images from a <code>pages.json</code> file at the root of your repository.</p>
+    <ol>
+      <li>Place your book images in the <code>books_pages/</code> folder.</li>
+      <li>Create a <code>pages.json</code> file at the root listing all image filenames in order:</li>
+    </ol>
+    <p>
+      <code>{ "title": "My Book", "pages": ["books_pages/page001.jpg", "books_pages/page002.jpg", …] }</code>
+    </p>
+    <ol start="3">
+      <li>Commit and push — GitHub Pages will serve the images automatically.</li>
+    </ol>
+    <p style="margin-top:0.8rem">Supported formats: JPG, PNG, WebP, GIF</p>
+    <button class="close-btn" id="closeSetup">Got it</button>
+  </div>
+</div>
+
+<script>
+  let pages = [];
+  let current = 0;
+
+  const img = document.getElementById('pageImg');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const currentNum = document.getElementById('currentPageNum');
+  const totalNum = document.getElementById('totalPagesNum');
+  const progress = document.getElementById('progressFill');
+  const bookTitle = document.getElementById('book-title');
+  const setupOverlay = document.getElementById('setupOverlay');
+
+  function showPage(index) {
+    if (!pages.length) return;
+    current = Math.max(0, Math.min(index, pages.length - 1));
+
+    img.classList.add('fade');
+    setTimeout(() => {
+      img.src = pages[current];
+      img.onload = () => img.classList.remove('fade');
+      img.onerror = () => { img.classList.remove('fade'); };
+    }, 200);
+
+    currentNum.textContent = current + 1;
+    totalNum.textContent = `of ${pages.length} pages`;
+    progress.style.width = `${((current + 1) / pages.length) * 100}%`;
+    prevBtn.disabled = current === 0;
+    nextBtn.disabled = current === pages.length - 1;
+
+    // Persist position
+    try { localStorage.setItem('ebook-page', current); } catch(e) {}
+  }
+
+  function init(data) {
+    pages = data.pages || [];
+    bookTitle.textContent = data.title || 'My Book';
+    document.title = data.title ? `${data.title} — Ebook Reader` : 'Ebook Reader';
+
+    if (!pages.length) {
+      img.style.display = 'none';
+      document.getElementById('pageDisplay').innerHTML =
+        '<p class="no-pages">No pages found.<br>Click the <strong style="color:var(--gold)">?</strong> button for setup instructions.</p>';
+      setupOverlay.style.display = 'flex';
+      return;
+    }
+
+    let savedPage = 0;
+    try { savedPage = parseInt(localStorage.getItem('ebook-page')) || 0; } catch(e) {}
+    showPage(savedPage);
+  }
+
+  // Load pages.json
+  fetch('./pages.json')
+    .then(r => r.json())
+    .then(init)
+    .catch(() => {
+      bookTitle.textContent = 'Setup required';
+      img.style.display = 'none';
+      document.getElementById('pageDisplay').innerHTML =
+        '<p class="no-pages">No <code style="color:var(--gold)">pages.json</code> found.<br>Click <strong style="color:var(--gold)">?</strong> for instructions.</p>';
+      setupOverlay.style.display = 'flex';
+    });
+
+  prevBtn.addEventListener('click', () => showPage(current - 1));
+  nextBtn.addEventListener('click', () => showPage(current + 1));
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') showPage(current - 1);
+    if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') showPage(current + 1);
+  });
+
+  document.getElementById('helpBtn').addEventListener('click', () => {
+    setupOverlay.style.display = 'flex';
+  });
+  document.getElementById('closeSetup').addEventListener('click', () => {
+    setupOverlay.style.display = 'none';
+  });
+</script>
+</body>
+</html>
